@@ -11,13 +11,12 @@ router.post('/scrape', async (req, res) => {
 	}
 
 	try {
-		await startScraping(payload.data);
+		const insertedDays = await startScraping(payload.data);
+		return res.send({ insertedDays });
 	} catch (error) {
 		console.error(error);
 		return res.status(500).send({ msg: 'scraping failed' });
 	}
-
-	return res.send({});
 });
 
 export default router;

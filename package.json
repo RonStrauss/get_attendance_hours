@@ -12,6 +12,8 @@
 	},
 	"scripts": {
 		"start": "npm run start:hilan:webtime",
+		"ui:dev": "npm --prefix frontend run dev",
+		"ui:build": "npm --prefix frontend run build",
 		"start:synerion:webtime": "npm run build && cross-env SCRAPING_TARGET=synerion AUTOMATION_TARGET=webtime node dist",
 		"start:hilan:webtime": "npm run build && cross-env SCRAPING_TARGET=hilan AUTOMATION_TARGET=webtime node dist",
 		"build": "tsup src/index.ts --format esm,cjs --dts",

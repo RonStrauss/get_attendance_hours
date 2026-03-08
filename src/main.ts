@@ -16,6 +16,8 @@ export async function startScraping(options?: Partial<Environment>) {
 
 	const automator = new DefaultAutomatingOrchestrator(config);
 	await automator.orchestrateDayAutomation(grouped);
+
+	return grouped.regular.length + grouped.sickDay.length + grouped.vacation.length;
 }
 
 function getTimesheetClientsConfig() {

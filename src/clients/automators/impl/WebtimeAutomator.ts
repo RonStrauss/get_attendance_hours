@@ -114,7 +114,9 @@ export class WebtimeAutomator extends Automator {
 		return;
 	}
 
-	private async handleDayInputting(page: Page, days: Day[], type: DayType): Promise<void> {
+	private async handleDayInputting(page: Page, days: Day[], type: DayType): Promise<number> {
+		const state = { totalDays: 0 };
+		const incrementTotalDaysHandled = () => state.totalDays++;
 		await this.selectAssignmentValue(page, type);
 
 		for (const day of days) {
@@ -125,11 +127,13 @@ export class WebtimeAutomator extends Automator {
 
 			await this.fillMissionInput(page, day);
 
-			await this.handleFillHourInputsStartAndEnd(page, day);
+			await this.handleFillHourInputsStartAndEnd(page, day, incrementTotalDaysHandled);
 		}
+
+		return state.totalDays;
 	}
 
-	private async handleFillHourInputsStartAndEnd(page: Page, day: Day) {
+	private async handleFillHourInputsStartAndEnd(page: Page, day: Day, onInput: () => void) {
 		const { start, end } = this.getHoursSelectors(day);
 
 		const [hourIn, minuteIn] = getSafeHourAndMinute(day.hours.in);
@@ -159,6 +163,8 @@ export class WebtimeAutomator extends Automator {
 			inputSelector: end.minute,
 			inputValue: minuteOut,
 		});
+
+		onInput();
 	}
 
 	private async selectAssignmentValue(page: Page, dayType: DayType) {

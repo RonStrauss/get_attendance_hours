@@ -1,0 +1,62 @@
+:root {
+  font-family: "Rubik", "Heebo", "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 24px 16px;
+  transition: background 0.2s ease;
+}
+
+.app-shell.light {
+  background: radial-gradient(circle at top right, #f9efe1, #f4f7ff 40%, #f4f4f6);
+}
+
+.app-shell.dark {
+  background: radial-gradient(circle at top right, #1a2433, #111317 45%, #0d0f12);
+}
+
+.app-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.top-bar {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0 !important;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.wizard-area {
+  align-items: center;
+}
+
+.step-card {
+  width: min(100%, 620px);
+}
+
+.step-actions {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.step-pane.hidden {
+  display: none;
+}
