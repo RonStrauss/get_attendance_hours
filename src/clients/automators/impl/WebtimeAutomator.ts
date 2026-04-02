@@ -152,15 +152,17 @@ export class WebtimeAutomator extends Automator {
 				earlyReturnOnNonEmpty: true,
 			};
 
-			const inputValuesResults = [
+			const inputValuesPromises = [
 				{ inputSelector: start.hour, inputValue: hourIn },
 				{ inputSelector: start.minute, inputValue: minuteIn },
 				{ inputSelector: end.hour, inputValue: hourOut },
 				{ inputSelector: end.minute, inputValue: minuteOut },
 				// TODO: switch to LoginInputStrategy
-			].map(async (values) => await fillInputByPartialId({ ...defaultOptions, ...values }));
+			].map((values) => fillInputByPartialId({ ...defaultOptions, ...values }));
 
-			if (inputValuesResults.some(Boolean)) {
+			const results = await Promise.all(inputValuesPromises);
+
+			if (results.some(Boolean)) {
 				onSuccessfulInput();
 			}
 		}
@@ -187,7 +189,7 @@ export class WebtimeAutomator extends Automator {
 			const currentValue = await missionInput.evaluate((input) => (input as HTMLInputElement).value);
 
 			if (currentValue && !forceFill) {
-				return;
+				continue;
 			}
 
 			await missionInput.click();
@@ -195,6 +197,10 @@ export class WebtimeAutomator extends Automator {
 	}
 
 	private getRowsSelector(day: Day): string {
+		// TODO: this currently assumes the active timesheet belongs to the current calendar year.
+		// If we later automate other periods/years, derive the year from the relevant row/timesheet value
+		// instead of `new Date()`, so date-based targeting stays correct.
+		// This is a very unlikely, extreme edge case - but it's good to be aware of it.
 		const [year, month, dayOfMonth] = [
 			new Date().getFullYear(),
 			getPaddedMonthFromDayType(day),
