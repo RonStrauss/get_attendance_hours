@@ -16,12 +16,13 @@ import {
 import { WebtimeDayHours } from '../types/Webtime';
 import { DefaultFillInputOptions, fillInputByPartialId } from '../../../util/fillInput';
 import { TimeSheetConfig } from '../../types/Config';
+import { setTimeout } from 'node:timers/promises';
 
 export interface WebtimeAutomatorConfig extends TimeSheetConfig {
 	dayModifiersSupport: {
 		vacation: boolean;
 		sickDays: false;
-		splitDays: false;
+		splitDays: boolean;
 	};
 }
 export class WebtimeAutomator extends Automator {
@@ -85,7 +86,7 @@ export class WebtimeAutomator extends Automator {
 			throw new UnsupportedConfigError('sick days are not currently supported');
 		}
 		if (this.config.dayModifiersSupport.splitDays) {
-			throw new UnsupportedConfigError('split days scraping are not currently supported');
+			console.log('webtime will fill split days');
 		}
 		if (this.config.dayModifiersSupport.vacation) {
 			console.log('webtime will fill vacation days');
@@ -100,7 +101,7 @@ export class WebtimeAutomator extends Automator {
 		}
 
 		// TODO: add sick notes upload to be able to support sick days properly
-		if (this.config.dayModifiersSupport.vacation && days[DayType.SICK_DAY].length) {
+		if (this.config.dayModifiersSupport.sickDays && days[DayType.SICK_DAY].length) {
 			await this.handleDayInputting(page, days[DayType.SICK_DAY], DayType.SICK_DAY);
 		}
 
@@ -124,7 +125,7 @@ export class WebtimeAutomator extends Automator {
 		await this.selectAssignmentValue(page, type);
 
 		for (const day of days) {
-			const tr = (await page.$$(this.getRowsSelector(day))) as ElementHandle<HTMLTableRowElement>[];
+			const tr = (await this.populateAndReturnRows(page, day)).slice(0, day.hours.length);
 			if (!tr.length) {
 				formAutomationError(`couldn't find row/s for day ${day.dayValue}`);
 			}
@@ -139,13 +140,14 @@ export class WebtimeAutomator extends Automator {
 
 	private async handleFillHourInputsStartAndEnd(
 		rows: ElementHandle<Element>[],
-		hours: DayHours,
+		hours: DayHours[],
 		onSuccessfulInput: () => void,
 	) {
-		for (const row of rows) {
+		for (const index in rows) {
+			const row = rows[index];
 			const { start, end } = this.getPossiblyPartialHoursSelector();
-			const [hourIn, minuteIn] = getSafeHourAndMinute(hours.in);
-			const [hourOut, minuteOut] = getSafeHourAndMinute(hours.out);
+			const [hourIn, minuteIn] = getSafeHourAndMinute(hours[index].in);
+			const [hourOut, minuteOut] = getSafeHourAndMinute(hours[index].out);
 
 			const defaultOptions: DefaultFillInputOptions = {
 				handler: row,
@@ -178,7 +180,7 @@ export class WebtimeAutomator extends Automator {
 		await selectElement.select(this.dayType2DescriptorRawValue[dayType]);
 	}
 
-	private async fillMissionInput(rows: ElementHandle<HTMLTableRowElement>[], forceFill = false) {
+	private async fillMissionInput(rows: ElementHandle<HTMLTableRowElement>[]) {
 		for (const row of rows) {
 			const missionInput = await row.$('input[fieldname="assignment_name"]');
 
@@ -188,12 +190,37 @@ export class WebtimeAutomator extends Automator {
 
 			const currentValue = await missionInput.evaluate((input) => (input as HTMLInputElement).value);
 
-			if (currentValue && !forceFill) {
+			if (currentValue) {
 				continue;
 			}
 
 			await missionInput.click();
 		}
+	}
+
+	private async populateAndReturnRows(page: Page, day: Day): Promise<ElementHandle<HTMLTableRowElement>[]> {
+		let rows = (await page.$$(this.getRowsSelector(day))) as ElementHandle<HTMLTableRowElement>[];
+		const expectedRows = rows.length;
+
+		if (expectedRows && day.hours.length > expectedRows) {
+			for (let i = expectedRows; i < day.hours.length; i++) {
+				await this.splitRow(page, day);
+				await setTimeout(200);
+			}
+
+			rows = (await page.$$(this.getRowsSelector(day))) as ElementHandle<HTMLTableRowElement>[];
+		}
+
+		return rows;
+	}
+
+	private async splitRow(page: Page, day: Day) {
+		const splitButton = await page.$(this.getRowsSelector(day) + ' [onclick*=addRow]');
+		if (!splitButton) {
+			formAutomationError(`couldn't find split button of ${day.dayValue}`);
+		}
+
+		await splitButton.click();
 	}
 
 	private getRowsSelector(day: Day): string {

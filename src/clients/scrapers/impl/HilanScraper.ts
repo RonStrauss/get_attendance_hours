@@ -18,7 +18,7 @@ export interface HilanScraperConfig extends TimeSheetConfig {
 	dayModifiersSupport: {
 		readonly vacation: boolean;
 		readonly sickDays: boolean;
-		readonly splitDays: false;
+		readonly splitDays: boolean;
 	};
 }
 export class HilanScraper extends Scraper {
@@ -133,7 +133,7 @@ export class HilanScraper extends Scraper {
 			console.log('hilan will scrape sick days');
 		}
 		if (this.config.dayModifiersSupport.splitDays) {
-			throw new UnsupportedConfigError('split days scraping are not currently supported');
+			console.log('hilan will scrape split days');
 		}
 		if (this.config.dayModifiersSupport.vacation) {
 			console.log('hilan will scrape vacation days');
@@ -151,8 +151,6 @@ export class HilanScraper extends Scraper {
 					.map((n) => parseInt(n))
 					.join('/') as DayValue | undefined;
 
-				// current implementation assumes only 1 pair of inputs (entry and exit)
-				// split days can return 2+, but it will always be (even=entry, odd=exit)
 				const hours = Array.from(
 					row.querySelectorAll<HTMLInputElement>(
 						'td[id*=cellOf_ManualEntry] input, td[id*=cellOf_ManualExit] input',
@@ -169,29 +167,30 @@ export class HilanScraper extends Scraper {
 		return rows.reduce(
 			(dayHashMap, row) => {
 				if (row.day) {
-					// split days incompatibility
-					if (row.hours.length !== 2) {
-						throw new ScrapingError(`Invalid hours for day ${row.day}`);
-					}
-
-					// split days incompatibility
-					const [inHour, outHour] = row.hours;
-					const dayType = this.resolveSelectTitle(row.selectElementTitle);
-
-					if ((!stringIsHourBase(inHour) || !stringIsHourBase(outHour)) && dayType === DayType.REGULAR) {
-						if (shouldThrowOnMalformed) {
-							throw new ScrapingError(`Malformed hour for day ${row.day}`);
-						} else {
-							return dayHashMap;
-						}
+					if (row.hours.length % 2 !== 0) {
+						throw new ScrapingError(`Invalid hours for day ${row.day}, non-even combination`);
 					}
 
 					dayHashMap[row.day] ??= [];
-					dayHashMap[row.day].push({
-						in: inHour,
-						out: outHour,
-						dayType: dayType,
-					});
+
+					for (let i = 0; i < row.hours.length; i += 2) {
+						const [inHour, outHour] = row.hours.slice(i, i + 2);
+						const dayType = this.resolveSelectTitle(row.selectElementTitle);
+
+						if ((!stringIsHourBase(inHour) || !stringIsHourBase(outHour)) && dayType === DayType.REGULAR) {
+							if (shouldThrowOnMalformed) {
+								throw new ScrapingError(`Malformed hour for day ${row.day}`);
+							} else {
+								return dayHashMap;
+							}
+						}
+
+						dayHashMap[row.day].push({
+							in: inHour,
+							out: outHour,
+							dayType: dayType,
+						});
+					}
 				}
 
 				return dayHashMap;
@@ -202,11 +201,14 @@ export class HilanScraper extends Scraper {
 
 	private resolveHoursAndModifiersForDay(hours: DayHoursWithDayType[]): Omit<Day, 'dayValue'> {
 		if (this.config.dayModifiersSupport.splitDays) {
-			unsupportedConfigError('feature not implemented');
+			return {
+				dayType: hours[0].dayType,
+				hours,
+			};
 		}
 
 		return {
-			hours: { in: hours[0].in, out: hours[0].out },
+			hours: [{ in: hours[0].in, out: hours[0].out }],
 			dayType: hours[0].dayType,
 		};
 	}

@@ -5,7 +5,7 @@ export type DayValue = `${ValidDay}/${ValidMonth}`;
 
 export interface Day {
 	dayValue: DayValue;
-	hours: DayHours;
+	hours: DayHours[];
 	dayType: DayType;
 }
 
