@@ -1,33 +1,43 @@
-import { Page } from 'puppeteer';
+import { ElementHandle, Page } from 'puppeteer';
 import formAutomationError from '../errors/FormAutomationError';
 
-export interface FillInputOptions {
-	page: Page;
+export interface FillInputOptions extends DefaultFillInputOptions {
 	inputSelector: string;
 	inputValue: string;
 	errorMsg?: string;
+}
+
+export interface DefaultFillInputOptions {
+	handler: Page | ElementHandle;
 	earlyReturnOnNonEmpty?: boolean;
 }
 
 export async function fillInputByName(options: FillInputOptions) {
-	const selector = `input[name=${options.inputSelector}]`;
-	return fillInput({ ...options, inputSelector: selector });
+	const inputSelector = `input[name=${options.inputSelector}]`;
+	return fillInput({ ...options, inputSelector });
 }
 export async function fillInputById(options: FillInputOptions) {
-	const selector = `#${options.inputSelector}`;
-	return fillInput({ ...options, inputSelector: selector });
+	const inputSelector = `#${options.inputSelector}`;
+	return fillInput({ ...options, inputSelector });
+}
+export async function fillInputByPartialId(options: FillInputOptions) {
+	const inputSelector = `input[id*="${options.inputSelector}"]`;
+	return fillInput({ ...options, inputSelector });
 }
 
 async function fillInput({
-	page,
+	handler,
 	inputSelector,
 	inputValue,
 	errorMsg,
 	earlyReturnOnNonEmpty,
 }: FillInputOptions) {
-	const element = await page.$(inputSelector);
+	if (!inputSelector) {
+		formAutomationError(`No selector provided`);
+	}
+	const element = await handler.$(inputSelector);
 	if (element === null) {
-		formAutomationError(errorMsg ?? 'couldnt find input');
+		formAutomationError(errorMsg ?? `couldn't find input: ${inputSelector}`);
 	}
 
 	const input = await element.toElement('input');
@@ -35,9 +45,11 @@ async function fillInput({
 	if (earlyReturnOnNonEmpty) {
 		const value = await input.evaluate(({ value }) => value);
 		if (value) {
-			return;
+			return false;
 		}
 	}
 
 	await input.type(inputValue);
+
+	return true;
 }
