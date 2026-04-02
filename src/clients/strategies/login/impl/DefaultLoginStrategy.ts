@@ -31,11 +31,11 @@ export class DefaultLoginStrategy implements LoginStrategy {
 		}
 
 		const submitButton = await this.page.$('button[type=submit]');
-		if (submitButton === null) {
-			formAutomationError('couldnt find submit button');
+		if (!submitButton) {
+			formAutomationError("couldn't find submit button");
 		}
 
-		await submitButton?.click();
+		await submitButton.click();
 		await this.page.waitForNavigation({ waitUntil: 'networkidle2' });
 	}
 
@@ -46,8 +46,8 @@ export class DefaultLoginStrategy implements LoginStrategy {
 		const opts: FillInputOptions = {
 			inputSelector: input.inputSelector.rawSelector,
 			inputValue: String(input.inputValue),
-			errorMsg: input.errorMsg || `couldnt fill ${input.inputSelector.rawSelector} input`,
-			page: this.page,
+			errorMsg: input.errorMsg || `couldn't fill ${input.inputSelector.rawSelector} input`,
+			handler: this.page,
 		};
 
 		switch (input.inputSelector.lookupStrategy) {

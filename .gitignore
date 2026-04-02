@@ -3,3 +3,8 @@
 node_modules
 dist
 .env
+
+**/reference/*
+!**/reference/README.md
+
+.vscode

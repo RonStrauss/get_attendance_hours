@@ -1,6 +1,6 @@
-import { Page } from 'puppeteer';
+import { ElementHandle, Page } from 'puppeteer';
 import { Automator } from '../Automator';
-import { Day } from '../../types/HourDay';
+import { Day, DayHours } from '../../types/HourDay';
 import { UnsupportedConfigError } from '../../../errors/UnsupportedError';
 import { getCredentials } from '../../../util/getCredentials';
 import missingCredentialsError from '../../../errors/MissingCredentialsError';
@@ -8,9 +8,13 @@ import { LoginInputStrategy, SelectorLookupStrategy } from '../../types/LoginInp
 import { DefaultLoginStrategy } from '../../strategies/login/impl/DefaultLoginStrategy';
 import formAutomationError from '../../../errors/FormAutomationError';
 import { DayType, GroupedDays } from '../../types/CommonTypes';
-import { getDayFromDayType, getSafeHourAndMinute } from '../../../util/deconstructors';
+import {
+	getPaddedDayFromDayType,
+	getPaddedMonthFromDayType,
+	getSafeHourAndMinute,
+} from '../../../util/deconstructors';
 import { WebtimeDayHours } from '../types/Webtime';
-import { fillInputByName } from '../../../util/fillInput';
+import { DefaultFillInputOptions, fillInputByPartialId } from '../../../util/fillInput';
 import { TimeSheetConfig } from '../../types/Config';
 
 export interface WebtimeAutomatorConfig extends TimeSheetConfig {
@@ -103,7 +107,7 @@ export class WebtimeAutomator extends Automator {
 		const button = await page.$('#save_btn');
 
 		if (!button) {
-			formAutomationError('couldnt find save button');
+			formAutomationError("couldn't find save button");
 		}
 
 		await Promise.all([
@@ -120,96 +124,123 @@ export class WebtimeAutomator extends Automator {
 		await this.selectAssignmentValue(page, type);
 
 		for (const day of days) {
-			const tr = await page.$(this.getTrannySelector(day));
-			if (!tr) {
-				formAutomationError(`couldnt find tr for day ${day.dayValue}`);
+			const tr = (await page.$$(this.getRowsSelector(day))) as ElementHandle<HTMLTableRowElement>[];
+			if (!tr.length) {
+				formAutomationError(`couldn't find row/s for day ${day.dayValue}`);
 			}
 
-			await this.fillMissionInput(page, day);
+			await this.fillMissionInput(tr);
 
-			await this.handleFillHourInputsStartAndEnd(page, day, incrementTotalDaysHandled);
+			await this.handleFillHourInputsStartAndEnd(tr, day.hours, incrementTotalDaysHandled);
 		}
 
 		return state.totalDays;
 	}
 
-	private async handleFillHourInputsStartAndEnd(page: Page, day: Day, onInput: () => void) {
-		const { start, end } = this.getHoursSelectors(day);
+	private async handleFillHourInputsStartAndEnd(
+		rows: ElementHandle<Element>[],
+		hours: DayHours,
+		onSuccessfulInput: () => void,
+	) {
+		for (const row of rows) {
+			const { start, end } = this.getPossiblyPartialHoursSelector();
+			const [hourIn, minuteIn] = getSafeHourAndMinute(hours.in);
+			const [hourOut, minuteOut] = getSafeHourAndMinute(hours.out);
 
-		const [hourIn, minuteIn] = getSafeHourAndMinute(day.hours.in);
-		const [hourOut, minuteOut] = getSafeHourAndMinute(day.hours.out);
+			const defaultOptions: DefaultFillInputOptions = {
+				handler: row,
+				earlyReturnOnNonEmpty: true,
+			};
 
-		const defaultOptions = { page, earlyReturnOnNonEmpty: true };
+			const inputValuesResults = [
+				{ inputSelector: start.hour, inputValue: hourIn },
+				{ inputSelector: start.minute, inputValue: minuteIn },
+				{ inputSelector: end.hour, inputValue: hourOut },
+				{ inputSelector: end.minute, inputValue: minuteOut },
+				// TODO: switch to LoginInputStrategy
+			].map(async (values) => await fillInputByPartialId({ ...defaultOptions, ...values }));
 
-		// TODO: switch to LoginInputStrategy
-		await fillInputByName({
-			...defaultOptions,
-			inputSelector: start.hour,
-			inputValue: hourIn,
-		});
-		await fillInputByName({
-			...defaultOptions,
-			inputSelector: start.minute,
-			inputValue: minuteIn,
-		});
-
-		await fillInputByName({
-			...defaultOptions,
-			inputSelector: end.hour,
-			inputValue: hourOut,
-		});
-		await fillInputByName({
-			...defaultOptions,
-			inputSelector: end.minute,
-			inputValue: minuteOut,
-		});
-
-		onInput();
+			if (inputValuesResults.some(Boolean)) {
+				onSuccessfulInput();
+			}
+		}
 	}
 
 	private async selectAssignmentValue(page: Page, dayType: DayType) {
 		const selectElement = await page.$('#assignments');
 
 		if (!selectElement) {
-			formAutomationError('couldnt find select element');
+			formAutomationError("couldn't find select element");
 		}
 
 		await selectElement.select(this.dayType2DescriptorRawValue[dayType]);
 	}
 
-	private async fillMissionInput(page: Page, day: Day, forceFill = false) {
-		const missionInput = await page.$(this.getTrannySelector(day) + ' input[fieldname="assignment_name"] ');
+	private async fillMissionInput(rows: ElementHandle<HTMLTableRowElement>[], forceFill = false) {
+		for (const row of rows) {
+			const missionInput = await row.$('input[fieldname="assignment_name"]');
 
-		if (!missionInput) {
-			formAutomationError('couldnt find mission input');
+			if (!missionInput) {
+				formAutomationError("couldn't find mission input");
+			}
+
+			const currentValue = await missionInput.evaluate((input) => (input as HTMLInputElement).value);
+
+			if (currentValue && !forceFill) {
+				return;
+			}
+
+			await missionInput.click();
 		}
-
-		const currentValue = await missionInput.evaluate((input) => (input as HTMLInputElement).value);
-
-		if (currentValue && !forceFill) {
-			return;
-		}
-
-		await missionInput.click();
 	}
 
-	private getTrannySelector(day: Day): string {
-		// TODO split days incompatibility, adjust as needed
-		// takes row #, instead of looking at day value..
-		return `#tableDyn1 tr[row_no="${getDayFromDayType(day)}"]`;
+	private getRowsSelector(day: Day): string {
+		const [year, month, dayOfMonth] = [
+			new Date().getFullYear(),
+			getPaddedMonthFromDayType(day),
+			getPaddedDayFromDayType(day),
+		];
+		return `#tableDyn1 tr:has(input[value="${year}-${month}-${dayOfMonth}"])`;
 	}
 
-	private getHoursSelectors(day: Day): WebtimeDayHours {
-		const dayNumber = getDayFromDayType(day);
+	private getPossiblyPartialHoursSelector(day?: string): WebtimeDayHours {
 		return {
 			start: {
-				hour: `time_start_HH_${dayNumber}`,
-				minute: `time_start_MM_${dayNumber}`,
+				hour: `time_start_HH_${day ?? ''}`,
+				minute: `time_start_MM_${day ?? ''}`,
 			},
 			end: {
-				hour: `time_end_HH_${dayNumber}`,
-				minute: `time_end_MM_${dayNumber}`,
+				hour: `time_end_HH_${day ?? ''}`,
+				minute: `time_end_MM_${day ?? ''}`,
 			},
 		};
 	}
+
+	// TODO fully implement
+	// private getExpectedInputs(target: 'login' | 'timesheetAutomation'): LoginInputStrategy[] {
+	// 	switch (target) {
+	// 		case 'login':
+	// 			return [
+	// 				{
+	// 					inputSelector: {
+	// 						rawSelector: 'email',
+	// 						lookupStrategy: SelectorLookupStrategy.BY_INPUT_NAME,
+	// 					},
+	// 					inputValue: credentials.username,
+	// 				},
+	// 				{
+	// 					inputSelector: {
+	// 						rawSelector: 'password',
+	// 						lookupStrategy: SelectorLookupStrategy.BY_INPUT_NAME,
+	// 					},
+	// 					inputValue: credentials.password,
+	// 				},
+	// 			];
+	// 		case 'timesheetAutomation':
+	// 			return [];
+
+	// 		default:
+	// 			return [];
+	// 	}
+	// }
 }
