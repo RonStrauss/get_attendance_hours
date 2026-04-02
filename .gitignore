@@ -7,4 +7,4 @@ dist
 **/reference/*
 !**/reference/README.md
 
-.vscode
+.vscode/settings.json
