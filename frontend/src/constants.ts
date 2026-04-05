@@ -10,10 +10,12 @@ export const automatorOptions: { value: AutomatorTarget; label: string }[] = [
 	{ value: 'webtime', label: 'Ovdimnet (טלדור/one)' },
 ];
 
+// TODO this should come from the backend.
+// Also, we should add target combination specific modifiers, for future expansion.
 export const modifierSupport: Record<DayModifierKey, boolean> = {
 	vacation: true,
 	sickDays: false,
-	splitDays: false,
+	splitDays: true,
 };
 
 export const modifierLabels: Record<DayModifierKey, string> = {

@@ -24,7 +24,7 @@ function getTimesheetClientsConfig() {
 	return {
 		dayModifiersSupport: {
 			sickDays: false,
-			splitDays: false,
+			splitDays: true,
 			vacation: true,
 		},
 	} as const;
