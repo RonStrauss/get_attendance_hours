@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { z } from 'zod';
 import {
 	Button,
 	Card,
@@ -13,12 +14,40 @@ import {
 	theme,
 } from 'antd';
 import heIL from 'antd/locale/he_IL';
-import { modifierSupport } from './constants';
 import { ThemeModeMenu } from './components/ThemeModeMenu';
 import { AutomatorStep } from './components/steps/AutomatorStep';
 import { ModifiersStep } from './components/steps/ModifiersStep';
 import { ScraperStep } from './components/steps/ScraperStep';
-import { FormValues, ScrapeRequestBody, ScrapeResponse, ThemeMode } from './types';
+import { AppConfigResponse, FormValues, ScrapeRequestBody, ScrapeResponse, ThemeMode } from './types';
+
+// Validation schema for API response (security measure)
+const appConfigSchema = z.object({
+	scrapingTargets: z.array(
+		z.object({
+			value: z.enum(['hilan', 'synerion']),
+			label: z.string(),
+			disabled: z.boolean().optional(),
+		}),
+	),
+	automationTargets: z.array(
+		z.object({
+			value: z.enum(['webtime']),
+			label: z.string(),
+			disabled: z.boolean().optional(),
+		}),
+	),
+	dayModifiers: z.array(
+		z.object({
+			key: z.enum(['vacation', 'sickDays', 'splitDays']),
+			supported: z.boolean(),
+		}),
+	),
+	defaults: z.object({
+		SCRAPING_TARGET: z.enum(['hilan', 'synerion']),
+		AUTOMATION_TARGET: z.enum(['webtime']),
+		DAY_MODIFIERS: z.array(z.enum(['vacation', 'sickDays', 'splitDays'])),
+	}),
+});
 
 const { Title } = Typography;
 const themeStorageKey = 'attendance_theme_mode';
@@ -40,21 +69,68 @@ export default function App() {
 	const [currentStep, setCurrentStep] = useState(0);
 	const [submitting, setSubmitting] = useState(false);
 	const [insertedDays, setInsertedDays] = useState<number | null>(null);
+	const [appConfig, setAppConfig] = useState<AppConfigResponse | null>(null);
+	const [loadingConfig, setLoadingConfig] = useState(true);
+	const [configLoadFailed, setConfigLoadFailed] = useState(false);
 	const [apiMessage, messageContext] = message.useMessage();
 
 	const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark';
 	const currentAlgorithm = isDark ? theme.darkAlgorithm : theme.defaultAlgorithm;
 
 	const selectedModifiers = Form.useWatch('DAY_MODIFIERS', form) ?? [];
+	const supportedModifiers = useMemo(
+		() =>
+			new Set(
+				(appConfig?.dayModifiers ?? []).filter((modifier) => modifier.supported).map((modifier) => modifier.key),
+			),
+		[appConfig],
+	);
 
 	const modifiersValue = useMemo(
-		() => selectedModifiers.filter((modifier) => modifierSupport[modifier]),
-		[selectedModifiers],
+		() => selectedModifiers.filter((modifier) => supportedModifiers.has(modifier)),
+		[selectedModifiers, supportedModifiers],
 	);
 
 	useEffect(() => {
+		if (!appConfig) {
+			return;
+		}
+
 		form.setFieldValue('DAY_MODIFIERS', modifiersValue);
-	}, [form, modifiersValue]);
+	}, [appConfig, form, modifiersValue]);
+
+	const fetchAppConfig = useCallback(async () => {
+		setLoadingConfig(true);
+		setConfigLoadFailed(false);
+
+		try {
+			const response = await fetch('/api/config');
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const data = await response.json();
+			// Validate response data before using it (security measure)
+			const validated = appConfigSchema.safeParse(data);
+			if (!validated.success) {
+				console.error('Invalid config response:', validated.error);
+				throw new Error('Invalid config response from server');
+			}
+
+			setAppConfig(validated.data);
+			form.setFieldsValue(validated.data.defaults);
+		} catch (error) {
+			console.error(error);
+			setConfigLoadFailed(true);
+			apiMessage.error('טעינת ההגדרות נכשלה. נסה שוב.');
+		} finally {
+			setLoadingConfig(false);
+		}
+	}, [apiMessage, form]);
+
+	useEffect(() => {
+		void fetchAppConfig();
+	}, [fetchAppConfig]);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -175,11 +251,7 @@ export default function App() {
 					<Form<FormValues>
 						form={form}
 						layout="vertical"
-						initialValues={{
-							SCRAPING_TARGET: 'hilan',
-							AUTOMATION_TARGET: 'webtime',
-							DAY_MODIFIERS: ['vacation'],
-						}}
+						initialValues={appConfig?.defaults}
 						requiredMark={false}
 						preserve
 					>
@@ -197,16 +269,28 @@ export default function App() {
 											</Button>,
 										]}
 									/>
+								) : loadingConfig ? (
+									<Spin />
+								) : configLoadFailed || !appConfig ? (
+									<Result
+										status="error"
+										title="טעינת הגדרות המערכת נכשלה"
+										extra={[
+											<Button key="retry" type="primary" onClick={() => void fetchAppConfig()}>
+												נסה שוב
+											</Button>,
+										]}
+									/>
 								) : (
 									<Spin spinning={submitting && currentStep === 2}>
 										<div className={currentStep === 0 ? 'step-pane' : 'step-pane hidden'}>
-											<ScraperStep />
+											<ScraperStep options={appConfig.scrapingTargets} />
 										</div>
 										<div className={currentStep === 1 ? 'step-pane' : 'step-pane hidden'}>
-											<AutomatorStep />
+											<AutomatorStep options={appConfig.automationTargets} />
 										</div>
 										<div className={currentStep === 2 ? 'step-pane' : 'step-pane hidden'}>
-											<ModifiersStep />
+											<ModifiersStep modifiers={appConfig.dayModifiers} />
 										</div>
 										<Space className="step-actions">
 											<Button

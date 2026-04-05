@@ -1,8 +1,11 @@
 import { Form, Input, Select } from 'antd';
-import { automatorOptions } from '../../constants';
-import { FormValues } from '../../types';
+import { AutomatorTarget, FormValues, SelectOption } from '../../types';
 
-export function AutomatorStep() {
+interface Props {
+	options: SelectOption<AutomatorTarget>[];
+}
+
+export function AutomatorStep({ options }: Props) {
 	return (
 		<>
 			<Form.Item<FormValues>
@@ -10,7 +13,7 @@ export function AutomatorStep() {
 				name="AUTOMATION_TARGET"
 				rules={[{ required: true, message: 'בחר יעד אוטומציה' }]}
 			>
-				<Select options={automatorOptions} />
+				<Select options={options} />
 			</Form.Item>
 			<Form.Item<FormValues>
 				label="שם משתמש"
