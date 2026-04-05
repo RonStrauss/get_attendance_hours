@@ -1,69 +1,175 @@
-# Shufersal attendance scraper and synchronizer.
+# Shufersal Attendance Hours Sync
 
-Automatically scrape attendance hours and sync them.
+Scrape attendance data from supported source systems and sync it into a supported target timesheet system.
+
+The project currently supports:
+
+- Scraping from `hilan` and `synerion`
+- Automating entry into `webtime`
+- Running as a CLI-style script, an HTTP API, or through the local frontend
 
 ## Features
 
-- **Multi-source scraping**: Extensible scraper architecture for multiple attendance systems
-- **Multi-target automation**: Flexible automation engine for various time-tracking platforms
-- **Day modifiers**: Support for vacation days and other time-off modifiers
-- **Pluggable architecture**: Easy to add new scrapers and automation targets
+- Extensible scraper and automator architecture
+- Support for regular workdays and vacation days
+- API server for programmatic usage
+- Local React frontend for those that prefer GUIs
+- Shared environment schema for CLI and API execution
+
+## Requirements
+
+- Node.js `22` or newer
+- npm
+- Access to the source and target systems you plan to use
 
 ## Installation
 
 ```bash
-git clone git@github.com:RonStShufersal/attendance-sync.git
-cd attendance-sync
+git clone https://github.com/RonStShufersal/get_attendance_hours
+cd get_attendance_hours
 npm install
+```
+
+To use the frontend as well:
+
+```bash
+npm run ui:quickstart
 ```
 
 ## Configuration
 
-Create a `.env` file in the root directory with the following:
+Create a `.env` file in the project root.
 
 ```env
-SCRAPING_TARGET=hilan          # Attendance system to scrape from
-AUTOMATION_TARGET=webtime      # Time-tracking platform to sync to
+SCRAPING_TARGET=hilan
+AUTOMATION_TARGET=webtime
+
+SCRAPER_USERNAME=your_source_username
+SCRAPER_PASSWORD=your_source_password
+AUTOMATOR_USERNAME=your_target_username
+AUTOMATOR_PASSWORD=your_target_password
+
+PORT=3000
+THROW_ON_MALFORMED_DAYS=false
 ```
 
-### Supported Targets
+### Environment variables
 
-**Scraping Sources:**
+| Variable                  | Required | Default       | Description                                                  |
+| ------------------------- | -------- | ------------- | ------------------------------------------------------------ |
+| `SCRAPING_TARGET`         | Yes      | `hilan`       | Source system to scrape from                                 |
+| `AUTOMATION_TARGET`       | Yes      | `webtime`     | Target system to fill                                        |
+| `SCRAPER_USERNAME`        | Yes      | -             | Username for the selected scraping source                    |
+| `SCRAPER_PASSWORD`        | Yes      | -             | Password for the selected scraping source                    |
+| `AUTOMATOR_USERNAME`      | Yes      | -             | Username for the selected automation target                  |
+| `AUTOMATOR_PASSWORD`      | Yes      | -             | Password for the selected automation target                  |
+| `PORT`                    | No       | `3000`        | Port used by the Express API server                          |
+| `THROW_ON_MALFORMED_DAYS` | No       | false (unset) | When `true`, fail instead of skipping malformed scraped rows |
 
-- `hilan` - Hilan attendance system
-- `synerion` - Synerion platform
+## Compatibility
 
-**Automation Targets:**
+### Supported targets
 
-- `webtime` - Webtime time-tracking
+| Type      | Target     | Status     | Notes                                              |
+| --------- | ---------- | ---------- | -------------------------------------------------- |
+| Scraper   | `hilan`    | Supported  | Main browser-based scraper                         |
+| Scraper   | `synerion` | Deprecated | Available as a scraping source, but not maintained |
+| Automator | `webtime`  | Supported  | Current automation target                          |
 
-### Required Credentials
+### Supported source to target combinations
 
-Credentials for your selected targets should be provided in the `.env` file:
+| Scraper    | Automator | Status     |
+| ---------- | --------- | ---------- |
+| `hilan`    | `webtime` | Supported  |
+| `synerion` | `webtime` | Deprecated |
 
-```env
-HILAN_USERNAME=your_username
-HILAN_PASSWORD=your_password
-WEBTIME_USERNAME=your_username
-WEBTIME_PASSWORD=your_password
-```
+### Day modifier compatibility
+
+| Capability    | `hilan` scrape                                                     | `webtime` automation    |
+| ------------- | ------------------------------------------------------------------ | ----------------------- |
+| Regular days  | Yes                                                                | Yes                     |
+| Vacation days | Yes                                                                | Yes                     |
+| Sick days     | Available in scrape flow, but not enabled in current orchestration | Not currently supported |
+| Split days    | Yes                                                                | Yes                     |
 
 ## Usage
 
-### Run full automation
+### Run the default flow
 
-Scrape from Hilan and sync to Webtime:
+This runs the currently configured default combination: `hilan -> webtime`.
 
 ```bash
 npm start
 ```
 
-### Development
+### Run a specific supported combination
 
-Build the project:
+```bash
+npm run start:hilan:webtime
+npm run start:synerion:webtime
+```
+
+### Start the API server
 
 ```bash
 npm run build
+node dist/index.js
+```
+
+Health check:
+
+```http
+GET /health
+```
+
+Scrape and sync request:
+
+```http
+POST /api/scrape
+Content-Type: application/json
+```
+
+Example body:
+
+```json
+{
+	"SCRAPING_TARGET": "hilan",
+	"AUTOMATION_TARGET": "webtime",
+	"SCRAPER_USERNAME": "your-source-user",
+	"SCRAPER_PASSWORD": "your-source-password",
+	"AUTOMATOR_USERNAME": "your-target-user",
+	"AUTOMATOR_PASSWORD": "your-target-password"
+}
+```
+
+### Run the frontend locally
+
+Start the API server in one terminal:
+
+```bash
+node dist/index.js
+```
+
+Start the frontend in another:
+
+```bash
+npm run ui:dev
+```
+
+The Vite dev server proxies `/api` requests to `http://localhost:3000`.
+
+## Development
+
+Build the backend:
+
+```bash
+npm run build
+```
+
+Build the frontend:
+
+```bash
+npm run ui:build
 ```
 
 Run tests:
@@ -72,11 +178,27 @@ Run tests:
 npm run test:browser
 ```
 
-Lint code:
+Lint the codebase:
 
 ```bash
 npm run lint
 ```
+
+## Known limitations
+
+- The current default orchestration enables vacation days, but not sick days.
+- `webtime` automation assumes the active timesheet belongs to the current calendar year
+- Browser automation depends on Puppeteer and may require environment-specific adjustments in some setups
+
+## Contributing
+
+Contributions are welcome.
+
+- Open an issue for bugs, edge cases, or unsupported target combinations
+- Send a PR if you want to improve docs, fix scraping/automation issues, or add new targets
+- If you use this project, consider contributing target compatibility notes so the README stays accurate
+
+If you are interested in contributing, especially around additional targets, reliability improvements, or test coverage, please jump in.
 
 ## License
 
