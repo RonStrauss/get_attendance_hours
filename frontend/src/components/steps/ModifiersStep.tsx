@@ -1,19 +1,22 @@
 import { Checkbox, Form, Space, Typography } from 'antd';
-import { modifierLabels, modifierSupport } from '../../constants';
-import { DayModifierKey, FormValues } from '../../types';
+import { DayModifierConfig, FormValues, dayModifierLabels } from '../../types';
 
 const { Text } = Typography;
 
-export function ModifiersStep() {
+interface Props {
+	modifiers: DayModifierConfig[];
+}
+
+export function ModifiersStep({ modifiers }: Props) {
 	return (
 		<>
 			<Form.Item<FormValues> name="DAY_MODIFIERS">
 				<Checkbox.Group>
 					<Space wrap>
-						{(Object.keys(modifierSupport) as DayModifierKey[]).map((modifier) => (
-							<Checkbox key={modifier} value={modifier} disabled={!modifierSupport[modifier]}>
-								{modifierLabels[modifier]}
-								{!modifierSupport[modifier] ? ' (לא נתמך כרגע)' : ''}
+						{modifiers.map((modifier) => (
+							<Checkbox key={modifier.key} value={modifier.key} disabled={!modifier.supported}>
+								{dayModifierLabels[modifier.key]}
+								{!modifier.supported ? ' (לא נתמך כרגע)' : ''}
 							</Checkbox>
 						))}
 					</Space>

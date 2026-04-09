@@ -20,7 +20,7 @@ export async function startScraping(options?: Partial<Environment>) {
 	return grouped.regular.length + grouped.sickDay.length + grouped.vacation.length;
 }
 
-function getTimesheetClientsConfig() {
+export function getTimesheetClientsConfig() {
 	return {
 		dayModifiersSupport: {
 			sickDays: false,

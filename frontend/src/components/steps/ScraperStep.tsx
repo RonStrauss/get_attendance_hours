@@ -1,8 +1,11 @@
 import { Form, Input, Select } from 'antd';
-import { scraperOptions } from '../../constants';
-import { FormValues } from '../../types';
+import { FormValues, ScraperTarget, SelectOption } from '../../types';
 
-export function ScraperStep() {
+interface Props {
+	options: SelectOption<ScraperTarget>[];
+}
+
+export function ScraperStep({ options }: Props) {
 	return (
 		<>
 			<Form.Item<FormValues>
@@ -10,7 +13,7 @@ export function ScraperStep() {
 				name="SCRAPING_TARGET"
 				rules={[{ required: true, message: 'בחר יעד סקרייפר' }]}
 			>
-				<Select options={scraperOptions} />
+				<Select options={options} />
 			</Form.Item>
 			<Form.Item<FormValues>
 				label="שם משתמש"
