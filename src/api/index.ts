@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import env, { envSchema } from '../env/env.schema';
 import { getTimesheetClientsConfig, startScraping } from '../main';
+import { ErrorWithCode } from '../errors/ErrorCodes';
 
 const router = Router();
 
@@ -53,12 +54,12 @@ router.get('/config', async (_, res) => {
 	const appConfig = {
 		scrapingTargets: scraperTargets,
 		automationTargets,
-		dayModifiers: (Object.keys(config.dayModifiersSupport) as (keyof typeof config.dayModifiersSupport)[]).map(
-			(modifierKey) => ({
-				key: modifierKey,
-				supported: config.dayModifiersSupport[modifierKey],
-			}),
-		),
+		dayModifiers: (
+			Object.keys(config.dayModifiersSupport) as (keyof typeof config.dayModifiersSupport)[]
+		).map((modifierKey) => ({
+			key: modifierKey,
+			supported: config.dayModifiersSupport[modifierKey],
+		})),
 		defaults: {
 			SCRAPING_TARGET: env.SCRAPING_TARGET,
 			AUTOMATION_TARGET: env.AUTOMATION_TARGET,
@@ -87,7 +88,11 @@ router.post('/scrape', async (req, res) => {
 		return res.send({ insertedDays });
 	} catch (error) {
 		console.error(error);
-		return res.status(500).send({ msg: 'scraping failed' });
+		const json: Record<string, string | number> = { msg: 'scraping failed' };
+		if (error instanceof ErrorWithCode) {
+			json.errorCode = error.errorCode;
+		}
+		return res.status(500).send(json);
 	}
 });
 

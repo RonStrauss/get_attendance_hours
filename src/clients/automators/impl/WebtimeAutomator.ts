@@ -3,7 +3,7 @@ import { Automator } from '../Automator';
 import { Day, DayHours } from '../../types/HourDay';
 import { UnsupportedConfigError } from '../../../errors/UnsupportedError';
 import { getCredentials } from '../../../util/getCredentials';
-import missingCredentialsError from '../../../errors/MissingCredentialsError';
+import missingCredentialsError from '../../../errors/CredentialsError';
 import { LoginInputStrategy, SelectorLookupStrategy } from '../../types/LoginInputStrategy';
 import { DefaultLoginStrategy } from '../../strategies/login/impl/DefaultLoginStrategy';
 import formAutomationError from '../../../errors/FormAutomationError';
@@ -17,6 +17,7 @@ import { WebtimeDayHours } from '../types/Webtime';
 import { DefaultFillInputOptions, fillInputByPartialId } from '../../../util/fillInput';
 import { TimeSheetConfig } from '../../types/Config';
 import { setTimeout } from 'node:timers/promises';
+import { ErrorCodes } from '../../../errors/ErrorCodes';
 
 export interface WebtimeAutomatorConfig extends TimeSheetConfig {
 	dayModifiersSupport: {
@@ -50,7 +51,10 @@ export class WebtimeAutomator extends Automator {
 		const credentials = getCredentials('webtime');
 
 		if (!credentials.username || !credentials.password) {
-			missingCredentialsError('missing webtime username or password');
+			missingCredentialsError({
+				message: 'missing webtime username or password',
+				errorCode: ErrorCodes.WEBTIME_CREDENTIALS_MISSING,
+			});
 		}
 
 		const expectedInputs: LoginInputStrategy[] = [
@@ -83,7 +87,10 @@ export class WebtimeAutomator extends Automator {
 
 	protected validateConfigValues(): void {
 		if (this.config.dayModifiersSupport.sickDays) {
-			throw new UnsupportedConfigError('sick days are not currently supported');
+			throw new UnsupportedConfigError({
+				message: 'sick days are not currently supported',
+				errorCode: ErrorCodes.WEBTIME_UNSUPPORTED_CONFIG,
+			});
 		}
 		if (this.config.dayModifiersSupport.splitDays) {
 			console.log('webtime will fill split days');
@@ -108,15 +115,16 @@ export class WebtimeAutomator extends Automator {
 		const button = await page.$('#save_btn');
 
 		if (!button) {
-			formAutomationError("couldn't find save button");
+			formAutomationError({
+				message: "couldn't find save button",
+				errorCode: ErrorCodes.WEBTIME_FORMAUTOMATION,
+			});
 		}
 
 		await Promise.all([
 			button.click(),
-			await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 1000 * 60 * 5 }),
+			page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 1000 * 60 * 5 }),
 		]);
-
-		return;
 	}
 
 	private async handleDayInputting(page: Page, days: Day[], type: DayType): Promise<number> {
@@ -127,7 +135,10 @@ export class WebtimeAutomator extends Automator {
 		for (const day of days) {
 			const tr = (await this.populateAndReturnRows(page, day)).slice(0, day.hours.length);
 			if (!tr.length) {
-				formAutomationError(`couldn't find row/s for day ${day.dayValue}`);
+				formAutomationError({
+					message: `couldn't find row/s for day ${day.dayValue}`,
+					errorCode: ErrorCodes.WEBTIME_FORMAUTOMATION,
+				});
 			}
 
 			await this.fillMissionInput(tr);
@@ -174,7 +185,10 @@ export class WebtimeAutomator extends Automator {
 		const selectElement = await page.$('#assignments');
 
 		if (!selectElement) {
-			formAutomationError("couldn't find select element");
+			formAutomationError({
+				message: "couldn't find select element",
+				errorCode: ErrorCodes.WEBTIME_FORMAUTOMATION,
+			});
 		}
 
 		await selectElement.select(this.dayType2DescriptorRawValue[dayType]);
@@ -185,7 +199,10 @@ export class WebtimeAutomator extends Automator {
 			const missionInput = await row.$('input[fieldname="assignment_name"]');
 
 			if (!missionInput) {
-				formAutomationError("couldn't find mission input");
+				formAutomationError({
+					message: "couldn't find mission input",
+					errorCode: ErrorCodes.WEBTIME_FORMAUTOMATION,
+				});
 			}
 
 			const currentValue = await missionInput.evaluate((input) => (input as HTMLInputElement).value);
@@ -217,7 +234,10 @@ export class WebtimeAutomator extends Automator {
 	private async splitRow(page: Page, day: Day) {
 		const splitButton = await page.$(this.getRowsSelector(day) + ' [onclick*=addRow]');
 		if (!splitButton) {
-			formAutomationError(`couldn't find split button of ${day.dayValue}`);
+			formAutomationError({
+				message: `couldn't find split button of ${day.dayValue}`,
+				errorCode: ErrorCodes.WEBTIME_FORMAUTOMATION,
+			});
 		}
 
 		await splitButton.click();

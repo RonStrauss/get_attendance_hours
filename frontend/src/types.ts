@@ -1,4 +1,5 @@
 import type { DefaultOptionType } from 'antd/es/select';
+import { ErrorCodes } from '../../src/errors/ErrorCodes';
 
 export type ScraperTarget = 'hilan' | 'synerion';
 export type AutomatorTarget = 'webtime';
@@ -16,6 +17,11 @@ export interface ScrapeRequestBody {
 
 export interface ScrapeResponse {
 	insertedDays: number;
+}
+
+export interface ScrapeError {
+	errorCode: ErrorCodes;
+	msg: string;
 }
 
 /** Reuse antd's DefaultOptionType instead of declaring our own SelectOption */
@@ -47,3 +53,8 @@ export const dayModifierLabels: Record<DayModifierKey, string> = {
 	sickDays: 'מחלה',
 	splitDays: 'ימים מפוצלים',
 };
+
+// TODO: add error messages
+export const errorCodeLabels: Partial<Record<ErrorCodes, string>> = {
+	[ErrorCodes.HILAN_CREDENTIALS_WRONG]: 'חילן - שם משתמש או סיסמה שגויים',
+} as const;

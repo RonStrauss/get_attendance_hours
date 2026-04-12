@@ -1,5 +1,8 @@
-import { Page } from 'puppeteer';
-import missingCredentialsError from '../../../errors/MissingCredentialsError';
+import { Page, TimeoutError } from 'puppeteer';
+import missingCredentialsError, {
+	expiredCredentialsError,
+	wrongCredentialsError,
+} from '../../../errors/CredentialsError';
 import { Day, DayHoursWithDayType, DayValue, Hour } from '../../types/HourDay';
 import { getCredentials } from '../../../util/getCredentials';
 import { Scraper } from '../Scraper';
@@ -7,12 +10,12 @@ import { LoginInputStrategy, SelectorLookupStrategy } from '../../types/LoginInp
 import { DefaultLoginStrategy } from '../../strategies/login/impl/DefaultLoginStrategy';
 import formAutomationError from '../../../errors/FormAutomationError';
 import scrapeError, { ScrapingError } from '../../../errors/ScrapingError';
-import { UnsupportedConfigError, unsupportedConfigError } from '../../../errors/UnsupportedError';
 import { stringIsHourBase } from '../../../util/typeChecks';
 import { DayType } from '../../types/CommonTypes';
 import { RawDayRowHilan } from '../types/Hilan';
 import { TimeSheetConfig } from '../../types/Config';
 import env from '../../../env/env.schema';
+import { ErrorCodes } from '../../../errors/ErrorCodes';
 
 export interface HilanScraperConfig extends TimeSheetConfig {
 	dayModifiersSupport: {
@@ -44,7 +47,10 @@ export class HilanScraper extends Scraper {
 		const credentials = getCredentials('hilan');
 
 		if (!credentials.username || !credentials.password) {
-			missingCredentialsError('missing hilan username or password');
+			missingCredentialsError({
+				message: 'missing hilan username or password',
+				errorCode: ErrorCodes.HILAN_CREDENTIALS_MISSING,
+			});
 		}
 
 		const expectedInputs: LoginInputStrategy[] = [
@@ -67,16 +73,35 @@ export class HilanScraper extends Scraper {
 		];
 
 		const loginStrategy = new DefaultLoginStrategy(page, expectedInputs, this.INITIAL_URL);
-		await loginStrategy.handleLoginInputs();
-		await page.waitForNetworkIdle();
+		try {
+			await loginStrategy.handleLoginInputs();
+		} catch (error) {
+			if (!(error instanceof TimeoutError)) {
+				throw error;
+			}
+			if (page.url().includes(this.INITIAL_URL)) {
+				// TODO more robust error handling should be created
+				const wrongCredentialsErrorElement = await page.$('.h-centered-field.error');
+				if (wrongCredentialsErrorElement) {
+					wrongCredentialsError({ errorCode: ErrorCodes.HILAN_CREDENTIALS_WRONG });
+				}
+
+				expiredCredentialsError({ errorCode: ErrorCodes.HILAN_CREDENTIALS_EXPIRED });
+			}
+		}
 	}
 	protected async navigateToTimesheet(page: Page): Promise<void> {
 		const hoursLogAnchorHref = await page.$eval('[href*=calendarpage]', (el) =>
-			el ? (el as HTMLAnchorElement).href : formAutomationError('couldnt find hoursLogAnchor'),
+			el
+				? (el as HTMLAnchorElement).href
+				: formAutomationError({
+						message: 'couldnt find hoursLogAnchor',
+						errorCode: ErrorCodes.HILAN_FORMAUTOMATION,
+					}),
 		);
 
 		if (!hoursLogAnchorHref) {
-			formAutomationError('hoursLogAnchor is falsy');
+			formAutomationError({ message: 'hoursLogAnchor is falsy', errorCode: ErrorCodes.HILAN_FORMAUTOMATION });
 		}
 
 		page.goto(hoursLogAnchorHref);
@@ -88,7 +113,10 @@ export class HilanScraper extends Scraper {
 		const collectValidDays = await page.$$(`#calendar_container tr:nth-child(n+3) td[title]`);
 
 		if (!collectValidDays.length) {
-			return scrapeError('couldnt find days with hours logged');
+			return scrapeError({
+				message: 'couldnt find days with hours logged',
+				errorCode: ErrorCodes.HILAN_SCRAPING,
+			});
 		}
 
 		for (const element of collectValidDays) {
@@ -168,7 +196,10 @@ export class HilanScraper extends Scraper {
 			(dayHashMap, row) => {
 				if (row.day) {
 					if (row.hours.length % 2 !== 0) {
-						throw new ScrapingError(`Invalid hours for day ${row.day}, non-even combination`);
+						throw new ScrapingError({
+							message: `Invalid hours for day ${row.day}, non-even combination`,
+							errorCode: ErrorCodes.HILAN_SCRAPING,
+						});
 					}
 
 					dayHashMap[row.day] ??= [];
@@ -179,7 +210,10 @@ export class HilanScraper extends Scraper {
 
 						if ((!stringIsHourBase(inHour) || !stringIsHourBase(outHour)) && dayType === DayType.REGULAR) {
 							if (shouldThrowOnMalformed) {
-								throw new ScrapingError(`Malformed hour for day ${row.day}`);
+								throw new ScrapingError({
+									message: `Malformed hour for day ${row.day}`,
+									errorCode: ErrorCodes.HILAN_SCRAPING,
+								});
 							} else {
 								return dayHashMap;
 							}

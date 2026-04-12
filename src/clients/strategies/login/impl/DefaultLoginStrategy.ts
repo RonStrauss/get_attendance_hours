@@ -4,6 +4,7 @@ import illegalArgumentError from '../../../../errors/IllegalArgumentsError';
 import formAutomationError from '../../../../errors/FormAutomationError';
 import { fillInputById, fillInputByName, FillInputOptions } from '../../../../util/fillInput';
 import { LoginInputStrategy, SelectorLookupStrategy } from '../../../types/LoginInputStrategy';
+import { ErrorCodes } from '../../../../errors/ErrorCodes';
 
 export class DefaultLoginStrategy implements LoginStrategy {
 	constructor(
@@ -18,10 +19,12 @@ export class DefaultLoginStrategy implements LoginStrategy {
 
 	async handleLoginInputs(): Promise<void> {
 		if (!this.page || !this.expectedInputs || !this.loginUrl) {
-			illegalArgumentError(
-				'missing page, expectedInputs, or loginUrl: ' +
+			illegalArgumentError({
+				message:
+					'missing page, expectedInputs, or loginUrl: ' +
 					JSON.stringify([!this.page, this.expectedInputs, this.loginUrl]),
-			);
+				errorCode: ErrorCodes.GENERAL_ILLEGALARGUMENT,
+			});
 		}
 
 		await this.page.goto(this.loginUrl, { waitUntil: 'networkidle2' });
@@ -32,11 +35,14 @@ export class DefaultLoginStrategy implements LoginStrategy {
 
 		const submitButton = await this.page.$('button[type=submit]');
 		if (!submitButton) {
-			formAutomationError("couldn't find submit button");
+			formAutomationError({
+				message: "couldn't find submit button",
+				errorCode: ErrorCodes.GENERAL_FORMAUTOMATION,
+			});
 		}
 
 		await submitButton.click();
-		await this.page.waitForNavigation({ waitUntil: 'networkidle2' });
+		await this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 1000 * 12 });
 	}
 
 	private async fillInput(input: LoginInputStrategy): Promise<void> {

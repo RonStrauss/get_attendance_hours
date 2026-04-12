@@ -1,20 +1,29 @@
-export class UnsupportedTargetError extends Error {
-	constructor(message?: string) {
-		super(message);
+import { DefaultErrorOptions } from '../clients/types/CommonTypes';
+import { ErrorWithCode } from './ErrorCodes';
+
+export class UnsupportedTargetError extends ErrorWithCode {
+	constructor({ message, errorCode }: DefaultErrorOptions) {
+		super({ message, errorCode });
 		this.name = 'UnsupportedTarget';
 	}
 }
-export function unsupportedTargetError(message?: string): never {
-	throw new UnsupportedTargetError(message ?? 'current target is not supported');
+export function unsupportedTargetError({ message, errorCode }: DefaultErrorOptions): never {
+	throw new UnsupportedTargetError({
+		message: message ?? 'current target is not supported',
+		errorCode,
+	});
 }
 
-export class UnsupportedConfigError extends Error {
-	constructor(message?: string) {
-		super(message);
+export class UnsupportedConfigError extends ErrorWithCode {
+	constructor({ message, errorCode }: DefaultErrorOptions) {
+		super({ message, errorCode });
 		this.name = 'UnsupportedConfig';
 	}
 }
 
-export function unsupportedConfigError(message?: string): never {
-	throw new UnsupportedConfigError(message ?? 'config value not supported');
+export function unsupportedConfigError({ message, errorCode }: DefaultErrorOptions): never {
+	throw new UnsupportedConfigError({
+		message: message ?? 'config value not supported',
+		errorCode,
+	});
 }

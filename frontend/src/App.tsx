@@ -18,7 +18,15 @@ import { ThemeModeMenu } from './components/ThemeModeMenu';
 import { AutomatorStep } from './components/steps/AutomatorStep';
 import { ModifiersStep } from './components/steps/ModifiersStep';
 import { ScraperStep } from './components/steps/ScraperStep';
-import { AppConfigResponse, FormValues, ScrapeRequestBody, ScrapeResponse, ThemeMode } from './types';
+import {
+	AppConfigResponse,
+	errorCodeLabels,
+	FormValues,
+	ScrapeError,
+	ScrapeRequestBody,
+	ScrapeResponse,
+	ThemeMode,
+} from './types';
 
 // Validation schema for API response (security measure)
 const appConfigSchema = z.object({
@@ -81,7 +89,9 @@ export default function App() {
 	const supportedModifiers = useMemo(
 		() =>
 			new Set(
-				(appConfig?.dayModifiers ?? []).filter((modifier) => modifier.supported).map((modifier) => modifier.key),
+				(appConfig?.dayModifiers ?? [])
+					.filter((modifier) => modifier.supported)
+					.map((modifier) => modifier.key),
 			),
 		[appConfig],
 	);
@@ -209,16 +219,24 @@ export default function App() {
 				body: JSON.stringify(body),
 			});
 
-			if (!response.ok) {
+			if (!response.ok && response.status < 500) {
 				throw new Error(`HTTP ${response.status}`);
 			}
 
-			const data = (await response.json()) as ScrapeResponse;
+			const data = (await response.json()) as ScrapeResponse | ScrapeError;
+			if ('errorCode' in data) {
+				throw data;
+			}
 			setInsertedDays(data.insertedDays ?? 0);
 			apiMessage.success('הבקשה הושלמה בהצלחה');
 		} catch (error) {
 			console.error(error);
-			apiMessage.error('הבקשה נכשלה. בדוק פרטים ונסה שוב.');
+			let errorMessage = 'הבקשה נכשלה. בדוק פרטים ונסה שוב.';
+			if (error && (error as ScrapeError)?.errorCode && errorCodeLabels[(error as ScrapeError)?.errorCode]) {
+				errorMessage = errorCodeLabels[(error as ScrapeError).errorCode] ?? ''; // Partial is causing possible undefined, but we checked in the if
+			}
+
+			apiMessage.error(errorMessage);
 		} finally {
 			setSubmitting(false);
 		}
@@ -226,13 +244,13 @@ export default function App() {
 
 	const stepItems = [
 		{
-			title: 'חילוץ',
+			title: 'מקור',
 		},
 		{
 			title: 'יעד',
 		},
 		{
-			title: insertedDays !== null ? '✔ סיום' : 'שליחה',
+			title: insertedDays !== null ? 'סיום' : 'שליחה',
 		},
 	];
 
@@ -257,7 +275,7 @@ export default function App() {
 					>
 						<Space direction="vertical" size="large" className="full-width wizard-area">
 							<Steps current={currentStep} items={stepItems} />
-							<Card className="step-card" bordered={false}>
+							<Card className="step-card" variant="borderless">
 								{insertedDays !== null ? (
 									<Result
 										status="success"

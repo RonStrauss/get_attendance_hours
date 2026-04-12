@@ -1,3 +1,4 @@
+import { ErrorCodes } from '../../errors/ErrorCodes';
 import { Day, DayValue, Hour } from './HourDay';
 
 export interface RawDayRow {
@@ -12,3 +13,8 @@ export enum DayType {
 }
 
 export type GroupedDays = Record<DayType, Day[]>;
+
+export interface DefaultErrorOptions {
+	message?: string;
+	errorCode: ErrorCodes;
+}
