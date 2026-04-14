@@ -40,15 +40,34 @@ export interface ErrorResponse {
 	error: ErrorDetails;
 }
 
+const supportedErrorCodes: Record<ErrorCode, true> = {
+	LOGIN_FAILED: true,
+	NAVIGATION_FAILED: true,
+	ELEMENT_NOT_FOUND: true,
+	NO_DATA_FOUND: true,
+	EXTRACTION_FAILED: true,
+	VALIDATION_FAILED: true,
+	NETWORK_ERROR: true,
+	UNKNOWN_ERROR: true,
+};
+
 export function isErrorResponse(response: unknown): response is ErrorResponse {
+	if (response === null || typeof response !== 'object' || !('error' in response)) {
+		return false;
+	}
+
+	const { error } = response;
+
+	if (error === null || typeof error !== 'object') {
+		return false;
+	}
+
+	const errorRecord = error as Record<string, unknown>;
+
 	return (
-		response !== null &&
-		typeof response === 'object' &&
-		'error' in response &&
-		response.error !== null &&
-		typeof response.error === 'object' &&
-		'errorCode' in response.error &&
-		'message' in response.error
+		typeof errorRecord.errorCode === 'string' &&
+		errorRecord.errorCode in supportedErrorCodes &&
+		typeof errorRecord.message === 'string'
 	);
 }
 
