@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import env, { envSchema } from '../env/env.schema';
 import { getTimesheetClientsConfig, startScraping } from '../main';
-import { ScrapingError, ScrapingErrorDetails } from '../errors/ScrapingError';
+import { ScrapingError } from '../errors/ScrapingError';
 
 const router = Router();
 
@@ -43,18 +43,17 @@ const appConfigSchema = z.object({
 	}),
 });
 
-const errorResponseSchema = z.object({
-	error: z.object({
-		errorCode: z.string(),
-		message: z.string(),
-		scraper: z.string().optional(),
-		details: z.record(z.unknown()).optional(),
-		timestamp: z.number().optional(),
-	}),
-});
-
 export type AppConfig = z.infer<typeof appConfigSchema>;
-export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+export interface ErrorResponse {
+	error: {
+		errorCode: string;
+		message: string;
+		scraper?: string;
+		details?: Record<string, unknown>;
+		timestamp?: number;
+	};
+}
 
 function buildErrorResponse(error: unknown): ErrorResponse {
 	if (error instanceof ScrapingError) {
