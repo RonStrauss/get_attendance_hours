@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import env, { envSchema } from '../env/env.schema';
 import { getTimesheetClientsConfig, startScraping } from '../main';
+import { ScrapingError, ScrapingErrorDetails } from '../errors/ScrapingError';
 
 const router = Router();
 
@@ -42,7 +43,44 @@ const appConfigSchema = z.object({
 	}),
 });
 
+const errorResponseSchema = z.object({
+	error: z.object({
+		errorCode: z.string(),
+		message: z.string(),
+		scraper: z.string().optional(),
+		details: z.record(z.unknown()).optional(),
+		timestamp: z.number().optional(),
+	}),
+});
+
 export type AppConfig = z.infer<typeof appConfigSchema>;
+export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+function buildErrorResponse(error: unknown): ErrorResponse {
+	if (error instanceof ScrapingError) {
+		return {
+			error: error.toJSON(),
+		};
+	}
+
+	if (error instanceof Error) {
+		return {
+			error: {
+				errorCode: 'UNKNOWN_ERROR',
+				message: error.message,
+				timestamp: Date.now(),
+			},
+		};
+	}
+
+	return {
+		error: {
+			errorCode: 'UNKNOWN_ERROR',
+			message: 'An unexpected error occurred',
+			timestamp: Date.now(),
+		},
+	};
+}
 
 router.get('/config', async (_, res) => {
 	const config = getTimesheetClientsConfig();
@@ -79,7 +117,7 @@ router.get('/config', async (_, res) => {
 router.post('/scrape', async (req, res) => {
 	const payload = envSchema.safeParse(req.body);
 	if (!payload.success) {
-		return res.status(400).json({ msg: 'illegal body provided' });
+		return res.status(400).json(buildErrorResponse(new Error('illegal body provided')));
 	}
 
 	try {
@@ -87,7 +125,8 @@ router.post('/scrape', async (req, res) => {
 		return res.send({ insertedDays });
 	} catch (error) {
 		console.error(error);
-		return res.status(500).send({ msg: 'scraping failed' });
+		const errorResponse = buildErrorResponse(error);
+		return res.status(500).json(errorResponse);
 	}
 });
 

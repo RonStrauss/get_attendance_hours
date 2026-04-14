@@ -88,7 +88,7 @@ export class HilanScraper extends Scraper {
 		const collectValidDays = await page.$$(`#calendar_container tr:nth-child(n+3) td[title]`);
 
 		if (!collectValidDays.length) {
-			return scrapeError('couldnt find days with hours logged');
+			return scrapeError('ELEMENT_NOT_FOUND', 'Failed to find calendar elements with logged hours', { selector: '#calendar_container' }, 'hilan');
 		}
 
 		for (const element of collectValidDays) {
@@ -168,8 +168,7 @@ export class HilanScraper extends Scraper {
 			(dayHashMap, row) => {
 				if (row.day) {
 					if (row.hours.length % 2 !== 0) {
-						throw new ScrapingError(`Invalid hours for day ${row.day}, non-even combination`);
-					}
+					scrapeError('VALIDATION_FAILED', `Invalid hours for day ${row.day}: non-even combination of hours`, { day: row.day, hoursCount: row.hours.length }, 'hilan');
 
 					dayHashMap[row.day] ??= [];
 
@@ -179,7 +178,7 @@ export class HilanScraper extends Scraper {
 
 						if ((!stringIsHourBase(inHour) || !stringIsHourBase(outHour)) && dayType === DayType.REGULAR) {
 							if (shouldThrowOnMalformed) {
-								throw new ScrapingError(`Malformed hour for day ${row.day}`);
+								scrapeError('VALIDATION_FAILED', `Malformed hour values for day ${row.day}: hours do not match expected format`, { day: row.day, inHour, outHour }, 'hilan');
 							} else {
 								return dayHashMap;
 							}

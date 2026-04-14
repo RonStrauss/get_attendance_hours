@@ -18,6 +18,40 @@ export interface ScrapeResponse {
 	insertedDays: number;
 }
 
+export type ErrorCode = 
+	| 'LOGIN_FAILED'
+	| 'NAVIGATION_FAILED'
+	| 'ELEMENT_NOT_FOUND'
+	| 'NO_DATA_FOUND'
+	| 'EXTRACTION_FAILED'
+	| 'VALIDATION_FAILED'
+	| 'NETWORK_ERROR'
+	| 'UNKNOWN_ERROR';
+
+export interface ErrorDetails {
+	errorCode: ErrorCode;
+	message: string;
+	scraper?: string;
+	details?: Record<string, unknown>;
+	timestamp?: number;
+}
+
+export interface ErrorResponse {
+	error: ErrorDetails;
+}
+
+export function isErrorResponse(response: unknown): response is ErrorResponse {
+	return (
+		response !== null &&
+		typeof response === 'object' &&
+		'error' in response &&
+		response.error !== null &&
+		typeof response.error === 'object' &&
+		'errorCode' in response.error &&
+		'message' in response.error
+	);
+}
+
 /** Reuse antd's DefaultOptionType instead of declaring our own SelectOption */
 export type SelectOption<T extends string = string> = DefaultOptionType & { value: T };
 
@@ -46,4 +80,16 @@ export const dayModifierLabels: Record<DayModifierKey, string> = {
 	vacation: 'חופשה',
 	sickDays: 'מחלה',
 	splitDays: 'ימים מפוצלים',
+};
+
+// Error message translations (for localization)
+export const errorCodeMessages: Record<ErrorCode, string> = {
+	LOGIN_FAILED: 'שגיאה בהתחברות - בדוק שם משתמש וסיסמה',
+	NAVIGATION_FAILED: 'שגיאה בניווט לעמוד - נסה שוב מאוחר יותר',
+	ELEMENT_NOT_FOUND: 'לא נמצאו נתונים להוצאה - ודא כי יש שעות רשומות',
+	NO_DATA_FOUND: 'לא נמצאו שעות לתקופה שנבחרה',
+	EXTRACTION_FAILED: 'שגיאה בהוצאת הנתונים - נסה שוב',
+	VALIDATION_FAILED: 'שגיאה בעיבוד הנתונים - הנתונים לא תקינים',
+	NETWORK_ERROR: 'שגיאה בחיבור לרשת - בדוק את החיבור שלך',
+	UNKNOWN_ERROR: 'שגיאה לא ידועה - נסה שוב מאוחר יותר',
 };

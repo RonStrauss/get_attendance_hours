@@ -18,7 +18,7 @@ import { ThemeModeMenu } from './components/ThemeModeMenu';
 import { AutomatorStep } from './components/steps/AutomatorStep';
 import { ModifiersStep } from './components/steps/ModifiersStep';
 import { ScraperStep } from './components/steps/ScraperStep';
-import { AppConfigResponse, FormValues, ScrapeRequestBody, ScrapeResponse, ThemeMode } from './types';
+import { AppConfigResponse, FormValues, ScrapeRequestBody, ScrapeResponse, ThemeMode, isErrorResponse, errorCodeMessages } from './types';
 
 // Validation schema for API response (security measure)
 const appConfigSchema = z.object({
@@ -209,16 +209,25 @@ export default function App() {
 				body: JSON.stringify(body),
 			});
 
+			const data = await response.json();
+
 			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
+				if (isErrorResponse(data)) {
+					const errorMessage = errorCodeMessages[data.error.errorCode];
+					const detailedMessage = `${errorMessage}${data.error.scraper ? ` (${data.error.scraper})` : ''}${data.error.details ? `: ${JSON.stringify(data.error.details)}` : ''}`;
+					apiMessage.error(detailedMessage);
+				} else {
+					apiMessage.error('שגיאה לא צפויה. נסה שוב מאוחר יותר.');
+				}
+				return;
 			}
 
-			const data = (await response.json()) as ScrapeResponse;
-			setInsertedDays(data.insertedDays ?? 0);
+			const typedData = data as ScrapeResponse;
+			setInsertedDays(typedData.insertedDays ?? 0);
 			apiMessage.success('הבקשה הושלמה בהצלחה');
 		} catch (error) {
 			console.error(error);
-			apiMessage.error('הבקשה נכשלה. בדוק פרטים ונסה שוב.');
+			apiMessage.error('שגיאה בתקשורת עם השרת. בדוק את החיבור שלך.');
 		} finally {
 			setSubmitting(false);
 		}

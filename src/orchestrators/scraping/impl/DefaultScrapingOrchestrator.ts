@@ -39,7 +39,7 @@ export class DefaultScrapingOrchestrator extends ScrapingOrchestrator {
 		const scraper = new HilanScraper(this.config);
 		const days = await scraper.getDays();
 		if (!days?.length) {
-			scrapeError('No days scraped from hilan');
+			scrapeError('NO_DATA_FOUND', 'No days with logged hours found in hilan', { scraper: 'hilan' }, 'hilan');
 		}
 		return days;
 	}
@@ -47,7 +47,7 @@ export class DefaultScrapingOrchestrator extends ScrapingOrchestrator {
 	private async scrapeFromSynerion(): Promise<Day[]> {
 		const days = await getDaysFromSynerion();
 		if (!days?.length) {
-			scrapeError('No days scraped from synerion');
+			scrapeError('NO_DATA_FOUND', 'No days with logged hours found in synerion', { scraper: 'synerion' }, 'synerion');
 		}
 		return days;
 	}
