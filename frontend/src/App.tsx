@@ -122,7 +122,7 @@ export default function App() {
 		} catch (error) {
 			console.error(error);
 			setConfigLoadFailed(true);
-			apiMessage.error('טעינת ההגדרות נכשלה. נסה שוב.');
+			apiMessage.error('Failed to load configuration. Please try again.');
 		} finally {
 			setLoadingConfig(false);
 		}
@@ -217,17 +217,17 @@ export default function App() {
 					const detailedMessage = `${errorMessage}${data.error.scraper ? ` (${data.error.scraper})` : ''}${data.error.details ? `: ${JSON.stringify(data.error.details)}` : ''}`;
 					apiMessage.error(detailedMessage);
 				} else {
-					apiMessage.error('שגיאה לא צפויה. נסה שוב מאוחר יותר.');
+					apiMessage.error('Unexpected error. Please try again later.');
 				}
 				return;
 			}
 
 			const typedData = data as ScrapeResponse;
 			setInsertedDays(typedData.insertedDays ?? 0);
-			apiMessage.success('הבקשה הושלמה בהצלחה');
+			apiMessage.success('Request completed successfully');
 		} catch (error) {
 			console.error(error);
-			apiMessage.error('שגיאה בתקשורת עם השרת. בדוק את החיבור שלך.');
+			apiMessage.error('Server communication error. Check your connection.');
 		} finally {
 			setSubmitting(false);
 		}

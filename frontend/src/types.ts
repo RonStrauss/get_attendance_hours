@@ -85,12 +85,12 @@ export const dayModifierLabels: Record<DayModifierKey, string> = {
 
 // Error message translations (for localization)
 export const errorCodeMessages: Record<ErrorCode, string> = {
-	LOGIN_FAILED: 'שגיאה בהתחברות - בדוק שם משתמש וסיסמה',
-	NAVIGATION_FAILED: 'שגיאה בניווט לעמוד - נסה שוב מאוחר יותר',
-	ELEMENT_NOT_FOUND: 'לא נמצאו נתונים להוצאה - ודא כי יש שעות רשומות',
-	NO_DATA_FOUND: 'לא נמצאו שעות לתקופה שנבחרה',
-	EXTRACTION_FAILED: 'שגיאה בהוצאת הנתונים - נסה שוב',
-	VALIDATION_FAILED: 'שגיאה בעיבוד הנתונים - הנתונים לא תקינים',
-	NETWORK_ERROR: 'שגיאה בחיבור לרשת - בדוק את החיבור שלך',
-	UNKNOWN_ERROR: 'שגיאה לא ידועה - נסה שוב מאוחר יותר',
+	LOGIN_FAILED: 'Login failed - verify username and password',
+	NAVIGATION_FAILED: 'Navigation error - try again later',
+	ELEMENT_NOT_FOUND: 'No data found to extract - verify that hours are logged',
+	NO_DATA_FOUND: 'No hours found for the selected period',
+	EXTRACTION_FAILED: 'Data extraction error - try again',
+	VALIDATION_FAILED: 'Data processing error - invalid data format',
+	NETWORK_ERROR: 'Network connection error - check your connection',
+	UNKNOWN_ERROR: 'Unknown error - try again later',
 };
