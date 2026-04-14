@@ -213,7 +213,10 @@ export default function App() {
 
 			if (!response.ok) {
 				if (isErrorResponse(data)) {
-					const errorMessage = errorCodeMessages[data.error.errorCode];
+					const errorMessage =
+						errorCodeMessages[data.error.errorCode] ??
+						errorCodeMessages.UNKNOWN_ERROR ??
+						'Unexpected error. Please try again later.';
 					const detailedMessage = `${errorMessage}${data.error.scraper ? ` (${data.error.scraper})` : ''}${data.error.details ? `: ${JSON.stringify(data.error.details)}` : ''}`;
 					apiMessage.error(detailedMessage);
 				} else {
