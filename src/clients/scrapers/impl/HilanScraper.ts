@@ -6,7 +6,7 @@ import { Scraper } from '../Scraper';
 import { LoginInputStrategy, SelectorLookupStrategy } from '../../types/LoginInputStrategy';
 import { DefaultLoginStrategy } from '../../strategies/login/impl/DefaultLoginStrategy';
 import formAutomationError from '../../../errors/FormAutomationError';
-import scrapeError, { ScrapingError } from '../../../errors/ScrapingError';
+import scrapeError from '../../../errors/ScrapingError';
 import { UnsupportedConfigError, unsupportedConfigError } from '../../../errors/UnsupportedError';
 import { stringIsHourBase } from '../../../util/typeChecks';
 import { DayType } from '../../types/CommonTypes';
