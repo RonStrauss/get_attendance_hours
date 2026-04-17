@@ -7,7 +7,6 @@ import { LoginInputStrategy, SelectorLookupStrategy } from '../../types/LoginInp
 import { DefaultLoginStrategy } from '../../strategies/login/impl/DefaultLoginStrategy';
 import formAutomationError from '../../../errors/FormAutomationError';
 import scrapeError from '../../../errors/ScrapingError';
-import { UnsupportedConfigError, unsupportedConfigError } from '../../../errors/UnsupportedError';
 import { stringIsHourBase } from '../../../util/typeChecks';
 import { DayType } from '../../types/CommonTypes';
 import { RawDayRowHilan } from '../types/Hilan';

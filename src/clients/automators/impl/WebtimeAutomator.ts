@@ -132,7 +132,9 @@ export class WebtimeAutomator extends Automator {
 				}
 
 				await this.fillMissionInput(tr);
-				await this.handleFillHourInputsStartAndEnd(tr, hoursForType, () => {});
+				await this.handleFillHourInputsStartAndEnd(tr, hoursForType, () => {
+					// Callback placeholder
+				});
 			}
 		}
 
