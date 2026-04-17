@@ -83,10 +83,12 @@ function mapSynerionDayDTOToDay(dayDTO: SynerionDayDTO): Day {
 	const outTime: Hour = Out.Time;
 	return {
 		dayValue: dateFormat(new Date(day)),
-		hours: {
-			in: inTime,
-			out: outTime,
-		},
-		dayType: DayType.REGULAR,
+		hours: [
+			{
+				in: inTime,
+				out: outTime,
+				dayType: DayType.REGULAR,
+			},
+		],
 	};
 }

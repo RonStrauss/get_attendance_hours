@@ -94,15 +94,46 @@ export class WebtimeAutomator extends Automator {
 	}
 
 	protected async fillTimesheet(page: Page, days: GroupedDays): Promise<void> {
-		await this.handleDayInputting(page, days[DayType.REGULAR], DayType.REGULAR);
+		// Flatten days into individual hour entries with their dayType
+		const allDays = [...days[DayType.REGULAR], ...days[DayType.VACATION], ...days[DayType.SICK_DAY]];
+		
+		for (const day of allDays) {
+			// Group hours by dayType within this day
+			const hoursByType = day.hours.reduce(
+				(acc, hour) => {
+					if (!acc[hour.dayType]) {
+						acc[hour.dayType] = [];
+					}
+					acc[hour.dayType].push(hour);
+					return acc;
+				},
+				{} as Record<DayType, DayHours[]>,
+			);
 
-		if (this.config.dayModifiersSupport.vacation && days[DayType.VACATION].length) {
-			await this.handleDayInputting(page, days[DayType.VACATION], DayType.VACATION);
-		}
+			// Handle each dayType's hours for this day
+			for (const [dayType, hoursForType] of Object.entries(hoursByType)) {
+				const typedDayType = dayType as DayType;
+				
+				// Skip unsupported types
+				if (typedDayType === DayType.SICK_DAY) {
+					if (!this.config.dayModifiersSupport.sickDays) {
+						continue;
+					}
+					// TODO: add sick notes upload to be able to support sick days properly
+				}
+				if (typedDayType === DayType.VACATION && !this.config.dayModifiersSupport.vacation) {
+					continue;
+				}
 
-		// TODO: add sick notes upload to be able to support sick days properly
-		if (this.config.dayModifiersSupport.sickDays && days[DayType.SICK_DAY].length) {
-			await this.handleDayInputting(page, days[DayType.SICK_DAY], DayType.SICK_DAY);
+				await this.selectAssignmentValue(page, typedDayType);
+				const tr = (await this.populateAndReturnRows(page, day)).slice(0, hoursForType.length);
+				if (!tr.length) {
+					formAutomationError(`couldn't find row/s for day ${day.dayValue}`);
+				}
+
+				await this.fillMissionInput(tr);
+				await this.handleFillHourInputsStartAndEnd(tr, hoursForType, () => {});
+			}
 		}
 
 		const button = await page.$('#save_btn');
@@ -117,25 +148,6 @@ export class WebtimeAutomator extends Automator {
 		]);
 
 		return;
-	}
-
-	private async handleDayInputting(page: Page, days: Day[], type: DayType): Promise<number> {
-		const state = { totalDays: 0 };
-		const incrementTotalDaysHandled = () => state.totalDays++;
-		await this.selectAssignmentValue(page, type);
-
-		for (const day of days) {
-			const tr = (await this.populateAndReturnRows(page, day)).slice(0, day.hours.length);
-			if (!tr.length) {
-				formAutomationError(`couldn't find row/s for day ${day.dayValue}`);
-			}
-
-			await this.fillMissionInput(tr);
-
-			await this.handleFillHourInputsStartAndEnd(tr, day.hours, incrementTotalDaysHandled);
-		}
-
-		return state.totalDays;
 	}
 
 	private async handleFillHourInputsStartAndEnd(

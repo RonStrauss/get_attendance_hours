@@ -113,16 +113,15 @@ export class HilanScraper extends Scraper {
 			return {
 				dayValue: dayValue as DayValue,
 				hours: resolvedHours.hours,
-				dayType: resolvedHours.dayType,
 			};
 		});
 
 		if (!this.config.dayModifiersSupport.sickDays) {
-			normalizedDays = normalizedDays.filter((day) => day.dayType !== DayType.SICK_DAY);
+			normalizedDays = normalizedDays.filter((day) => !day.hours.some((h) => h.dayType === DayType.SICK_DAY));
 		}
 
 		if (!this.config.dayModifiersSupport.vacation) {
-			normalizedDays = normalizedDays.filter((day) => day.dayType !== DayType.VACATION);
+			normalizedDays = normalizedDays.filter((day) => !day.hours.some((h) => h.dayType === DayType.VACATION));
 		}
 
 		return normalizedDays;
@@ -201,14 +200,12 @@ export class HilanScraper extends Scraper {
 	private resolveHoursAndModifiersForDay(hours: DayHoursWithDayType[]): Omit<Day, 'dayValue'> {
 		if (this.config.dayModifiersSupport.splitDays) {
 			return {
-				dayType: hours[0].dayType,
 				hours,
 			};
 		}
 
 		return {
-			hours: [{ in: hours[0].in, out: hours[0].out }],
-			dayType: hours[0].dayType,
+			hours: [{ in: hours[0].in, out: hours[0].out, dayType: hours[0].dayType }],
 		};
 	}
 
