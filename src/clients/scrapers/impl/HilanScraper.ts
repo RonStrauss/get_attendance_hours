@@ -167,7 +167,8 @@ export class HilanScraper extends Scraper {
 			(dayHashMap, row) => {
 				if (row.day) {
 					if (row.hours.length % 2 !== 0) {
-					scrapeError('VALIDATION_FAILED', `Invalid hours for day ${row.day}: non-even combination of hours`, { day: row.day, hoursCount: row.hours.length }, 'hilan');
+						scrapeError('VALIDATION_FAILED', `Invalid hours for day ${row.day}: non-even combination of hours`, { day: row.day, hoursCount: row.hours.length }, 'hilan');
+					}
 
 					dayHashMap[row.day] ??= [];
 

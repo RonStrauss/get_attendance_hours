@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import env, { envSchema } from '../env/env.schema';
-import { getTimesheetClientsConfig, startScraping } from '../main';
+import { getTimesheetClientsConfig } from '../main';
+import { runScraper } from '../scraper';
 import { ScrapingError } from '../errors/ScrapingError';
 
 const router = Router();
@@ -120,8 +121,8 @@ router.post('/scrape', async (req, res) => {
 	}
 
 	try {
-		const insertedDays = await startScraping(payload.data);
-		return res.send({ insertedDays });
+		const result = await runScraper(payload.data);
+		return res.send({ insertedDays: result.insertedDays });
 	} catch (error) {
 		console.error(error);
 		const errorResponse = buildErrorResponse(error);
