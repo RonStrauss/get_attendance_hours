@@ -7,6 +7,7 @@
  * - An importable function for testing/debugging
  */
 
+import { fileURLToPath } from 'node:url';
 import { day2GroupedDays } from './converters/day2GroupedDays';
 import { DefaultScrapingOrchestrator } from './orchestrators/scraping/impl/DefaultScrapingOrchestrator';
 import { DefaultAutomatingOrchestrator } from './orchestrators/automating/impl/DefaultAutomatingOrchestrator';
@@ -83,7 +84,9 @@ function overrideEnvironment({
 }
 
 // When run as CLI/standalone script
-if (require.main === module) {
+const isMainModule = typeof process.argv[1] === 'string' && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isMainModule) {
 	runScraper()
 		.then((result) => {
 			console.log(JSON.stringify(result, null, 2));
