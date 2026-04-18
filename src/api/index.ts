@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import env, { envSchema } from '../env/env.schema';
-import { getTimesheetClientsConfig, startScraping } from '../main';
+import { getTimesheetClientsConfig } from '../main';
+import { runScraper } from '../scraper';
+import { ScrapingError } from '../errors/ScrapingError';
 
 const router = Router();
 
@@ -44,6 +46,42 @@ const appConfigSchema = z.object({
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
 
+export interface ErrorResponse {
+	error: {
+		errorCode: string;
+		message: string;
+		scraper?: string;
+		details?: Record<string, unknown>;
+		timestamp?: number;
+	};
+}
+
+function buildErrorResponse(error: unknown): ErrorResponse {
+	if (error instanceof ScrapingError) {
+		return {
+			error: error.toJSON(),
+		};
+	}
+
+	if (error instanceof Error) {
+		return {
+			error: {
+				errorCode: 'UNKNOWN_ERROR',
+				message: error.message,
+				timestamp: Date.now(),
+			},
+		};
+	}
+
+	return {
+		error: {
+			errorCode: 'UNKNOWN_ERROR',
+			message: 'An unexpected error occurred',
+			timestamp: Date.now(),
+		},
+	};
+}
+
 router.get('/config', async (_, res) => {
 	const config = getTimesheetClientsConfig();
 	// Explicitly define default selected modifiers rather than deriving from "supported"
@@ -79,15 +117,16 @@ router.get('/config', async (_, res) => {
 router.post('/scrape', async (req, res) => {
 	const payload = envSchema.safeParse(req.body);
 	if (!payload.success) {
-		return res.status(400).json({ msg: 'illegal body provided' });
+		return res.status(400).json(buildErrorResponse(new Error('illegal body provided')));
 	}
 
 	try {
-		const insertedDays = await startScraping(payload.data);
-		return res.send({ insertedDays });
+		const result = await runScraper(payload.data);
+		return res.send({ insertedDays: result.insertedDays });
 	} catch (error) {
 		console.error(error);
-		return res.status(500).send({ msg: 'scraping failed' });
+		const errorResponse = buildErrorResponse(error);
+		return res.status(500).json(errorResponse);
 	}
 });
 
