@@ -95,9 +95,11 @@ export class HilanScraper extends Scraper {
 			await element.click();
 		}
 
-		// unmark current day, as the empty value can break next functions.
-		// TODO current day might interest us if split days. Implement eventually.
-		await page.click('.currentDay');
+		/** 
+		TODO current day might interest us if split days. Implement eventually.
+		For now, we unmark current day, as the empty/non-even value can break next functions. 
+		**/
+		// await page.click('.currentDay');
 
 		await page.click('input[id*=RefreshSelectedDays]');
 
