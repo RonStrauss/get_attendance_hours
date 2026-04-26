@@ -14,6 +14,7 @@ export function day2GroupedDays(days: Day[]): GroupedDays {
 	};
 
 	for (const day of days) {
+		if (!day.dayType) continue;
 		record[day.dayType].push(day);
 	}
 

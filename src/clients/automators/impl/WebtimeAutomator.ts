@@ -139,36 +139,45 @@ export class WebtimeAutomator extends Automator {
 	}
 
 	private async handleFillHourInputsStartAndEnd(
-		rows: ElementHandle<Element>[],
-		hours: DayHours[],
-		onSuccessfulInput: () => void,
-	) {
-		for (const index in rows) {
-			const row = rows[index];
-			const { start, end } = this.getPossiblyPartialHoursSelector();
-			const [hourIn, minuteIn] = getSafeHourAndMinute(hours[index].in);
-			const [hourOut, minuteOut] = getSafeHourAndMinute(hours[index].out);
+    rows: ElementHandle<Element>[],
+    hours: DayHours[],
+    onSuccessfulInput: () => void,
+) {
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const dayHours = hours[i];
+        if (!dayHours) continue;
 
-			const defaultOptions: DefaultFillInputOptions = {
-				handler: row,
-				earlyReturnOnNonEmpty: true,
-			};
+        const { start, end } = this.getPossiblyPartialHoursSelector();
+        const [hourIn, minuteIn] = getSafeHourAndMinute(dayHours.in);
+        const [hourOut, minuteOut] = getSafeHourAndMinute(dayHours.out);
 
-			const inputValuesPromises = [
-				{ inputSelector: start.hour, inputValue: hourIn },
-				{ inputSelector: start.minute, inputValue: minuteIn },
-				{ inputSelector: end.hour, inputValue: hourOut },
-				{ inputSelector: end.minute, inputValue: minuteOut },
-				// TODO: switch to LoginInputStrategy
-			].map((values) => fillInputByPartialId({ ...defaultOptions, ...values }));
+        const baseOptions: DefaultFillInputOptions = {
+            handler: row,
+            earlyReturnOnNonEmpty: true,
+        };
 
-			const results = await Promise.all(inputValuesPromises);
+        const inputs = [
+            { inputSelector: start.hour, inputValue: hourIn },
+            { inputSelector: start.minute, inputValue: minuteIn },
+            { inputSelector: end.hour, inputValue: hourOut },
+            { inputSelector: end.minute, inputValue: minuteOut },
+        ];
 
-			if (results.some(Boolean)) {
-				onSuccessfulInput();
-			}
-		}
-	}
+        const inputSuccessArray = [];
+
+        for (const input of inputs) {
+            inputSuccessArray.push(await fillInputByPartialId({
+                ...baseOptions,
+                ...input,
+            }));
+        }
+
+        if (inputSuccessArray.some(Boolean)) {
+            onSuccessfulInput();
+        }
+    }
+}
 
 	private async selectAssignmentValue(page: Page, dayType: DayType) {
 		const selectElement = await page.$('#assignments');
